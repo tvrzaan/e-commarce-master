@@ -23,7 +23,7 @@ function showSuccess() {
 }
 
 /**
- * Display general error message
+ * Display error message
  */
 function showGeneralError() {
     if (isset($_SESSION['error'])) {
@@ -34,52 +34,10 @@ function showGeneralError() {
     return '';
 }
 
-/**
- * Clear all session messages
- */
+// Clear error messages after displaying them
 function clearMessages() {
     unset($_SESSION['errors']);
     unset($_SESSION['error']);
     unset($_SESSION['success']);
 }
-
-/**
- * Check if user is logged in
- */
-function isLoggedIn() {
-    return isset($_SESSION['user_id']) && isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true;
-}
-
-/**
- * Redirect if not logged in
- */
-function requireLogin() {
-    if (!isLoggedIn()) {
-        $_SESSION['error'] = "Please login to access this page";
-        header('Location: /e-commarce-master/views/auth/login.php');
-        exit;
-    }
-}
-
-/**
- * Get current user data
- */
-function getCurrentUser() {
-    if (isLoggedIn()) {
-        return [
-            'id' => $_SESSION['user_id'],
-            'username' => $_SESSION['username'],
-            'email' => $_SESSION['email']
-        ];
-    }
-    return null;
-}
-
-function is_logged_in() {
-    return isset($_SESSION['user_id']);
-}
-
-function is_admin() {
-    return isset($_SESSION['is_admin']) && $_SESSION['is_admin'];
-}
-?>
+?> 
