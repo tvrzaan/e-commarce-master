@@ -1,9 +1,19 @@
 <?php
 session_start();
 require_once(__DIR__ . '/../../includes/functions.php');
+
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 if (isset($_SESSION['user_id'])) {
     header('Location: /index.php');
     exit;
+}
+
+// Generate CSRF token if not exists
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 ?>
 <!DOCTYPE html>
@@ -23,14 +33,26 @@ if (isset($_SESSION['user_id'])) {
                         <h2 class="text-center mb-4">Login</h2>
                         
                         <?php 
+                        // Debug information
+                        if (isset($_SESSION['debug'])) {
+                            echo '<div class="alert alert-info">';
+                            echo nl2br(htmlspecialchars($_SESSION['debug']));
+                            echo '</div>';
+                            unset($_SESSION['debug']);
+                        }
+                        
                         echo showGeneralError();
                         echo showSuccess();
                         ?>
 
-                        <form action="/e-commarce-master/public/auth/login.php" method="post" class="needs-validation" novalidate>
+                        <form action="../../public/auth/login.php" method="post" class="needs-validation" novalidate>
+                            <!-- CSRF Protection -->
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
+                            
                             <div class="mb-4">
                                 <div class="form-outline">
-                                    <input type="email" name="email" id="email" class="form-control form-control-lg" required>
+                                    <input type="email" name="email" id="email" class="form-control form-control-lg" 
+                                           value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>" required>
                                     <label class="form-label" for="email">Email</label>
                                     <div class="invalid-feedback">
                                         Please enter a valid email address
@@ -53,7 +75,9 @@ if (isset($_SESSION['user_id'])) {
                             </div>
 
                             <div class="text-center mt-3">
-                                <a href="../register.php" class="btn btn-link">Don't have an account? Register</a>
+                                <a href="../auth/register.php" class="btn btn-link">Don't have an account? Register</a>
+                                <br>
+                                <a href="../auth/forgot-password.php" class="btn btn-link">Forgot Password?</a>
                             </div>
                         </form>
                     </div>

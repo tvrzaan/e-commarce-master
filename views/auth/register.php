@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once('includes/functions.php');
+require_once('../../includes/functions.php');
 $errors = $_SESSION["erros"] ?? [];
 unset($_SESSION["erros"]);
 ?>
@@ -25,7 +25,7 @@ unset($_SESSION["erros"]);
                         echo showSuccess();
                         ?>
 
-                        <form action="/e-commarce-master/public/auth/regester.php" method="post" id="registrationForm" class="needs-validation" novalidate>
+                        <form action="../../process_register.php" method="post" id="registrationForm" class="needs-validation" novalidate>
                             <!-- CSRF Protection -->
                             <input type="hidden" name="csrf_token" value="<?php echo hash_hmac('sha256', session_id(), 'secret_key'); ?>">
 
@@ -107,6 +107,18 @@ unset($_SESSION["erros"]);
                                                minlength="8" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
                                                title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 characters">
                                         <label class="form-label" for="password">Password</label>
+                                        <div class="password-requirements small text-muted mt-1">
+                                            Password must contain:
+                                            <ul class="ps-3 mb-0">
+                                                <li id="length">At least 8 characters</li>
+                                                <li id="uppercase">One uppercase letter</li>
+                                                <li id="lowercase">One lowercase letter</li>
+                                                <li id="number">One number</li>
+                                            </ul>
+                                        </div>
+                                        <div class="progress mt-2" style="height: 5px;">
+                                            <div id="password-strength" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
                                         <?php echo showError('password'); ?>
                                     </div>
                                 </div>
@@ -114,6 +126,7 @@ unset($_SESSION["erros"]);
                                     <div class="form-outline">
                                         <input type="password" name="confirmpassword" id="confirmpassword" class="form-control form-control-lg" required>
                                         <label class="form-label" for="confirmpassword">Confirm Password</label>
+                                        <div id="password-match" class="small mt-1"></div>
                                         <?php echo showError('confirmpassword'); ?>
                                     </div>
                                 </div>
@@ -121,7 +134,7 @@ unset($_SESSION["erros"]);
 
                             <div class="mt-4">
                                 <button type="submit" class="btn btn-primary btn-lg">Register</button>
-                                <a href="login.php" class="btn btn-link">Already have an account? Login</a>
+                                <a href="../auth/login.php" class="btn btn-link">Already have an account? Login</a>
                             </div>
                         </form>
                     </div>
@@ -132,7 +145,70 @@ unset($_SESSION["erros"]);
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    // Client-side validation
+    // Password validation and strength meter
+    document.getElementById('password').addEventListener('input', function() {
+        const password = this.value;
+        const requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password)
+        };
+
+        // Update requirement indicators
+        Object.keys(requirements).forEach(req => {
+            const element = document.getElementById(req);
+            if (requirements[req]) {
+                element.classList.add('text-success');
+                element.classList.remove('text-muted');
+            } else {
+                element.classList.remove('text-success');
+                element.classList.add('text-muted');
+            }
+        });
+
+        // Calculate password strength
+        let strength = 0;
+        if (requirements.length) strength += 25;
+        if (requirements.uppercase) strength += 25;
+        if (requirements.lowercase) strength += 25;
+        if (requirements.number) strength += 25;
+
+        const strengthBar = document.getElementById('password-strength');
+        strengthBar.style.width = strength + '%';
+        
+        if (strength <= 25) {
+            strengthBar.className = 'progress-bar bg-danger';
+        } else if (strength <= 50) {
+            strengthBar.className = 'progress-bar bg-warning';
+        } else if (strength <= 75) {
+            strengthBar.className = 'progress-bar bg-info';
+        } else {
+            strengthBar.className = 'progress-bar bg-success';
+        }
+    });
+
+    // Password match validation
+    document.getElementById('confirmpassword').addEventListener('input', function() {
+        const password = document.getElementById('password').value;
+        const confirm = this.value;
+        const matchIndicator = document.getElementById('password-match');
+        
+        if (confirm === '') {
+            matchIndicator.textContent = '';
+            matchIndicator.className = 'small mt-1';
+        } else if (password === confirm) {
+            matchIndicator.textContent = 'Passwords match';
+            matchIndicator.className = 'small mt-1 text-success';
+            this.setCustomValidity('');
+        } else {
+            matchIndicator.textContent = 'Passwords do not match';
+            matchIndicator.className = 'small mt-1 text-danger';
+            this.setCustomValidity('Passwords do not match');
+        }
+    });
+
+    // Form validation
     (function () {
         'use strict'
         var forms = document.querySelectorAll('.needs-validation')
@@ -142,18 +218,6 @@ unset($_SESSION["erros"]);
                     event.preventDefault()
                     event.stopPropagation()
                 }
-
-                // Check if passwords match
-                var password = document.getElementById('password')
-                var confirm = document.getElementById('confirmpassword')
-                if (password.value !== confirm.value) {
-                    confirm.setCustomValidity('Passwords do not match')
-                    event.preventDefault()
-                    event.stopPropagation()
-                } else {
-                    confirm.setCustomValidity('')
-                }
-
                 form.classList.add('was-validated')
             }, false)
         })

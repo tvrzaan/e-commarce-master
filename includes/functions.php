@@ -82,4 +82,8 @@ function is_logged_in() {
 function is_admin() {
     return isset($_SESSION['is_admin']) && $_SESSION['is_admin'];
 }
+
+function isAdmin() {
+    return is_admin();
+}
 ?>
