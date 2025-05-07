@@ -145,10 +145,7 @@ function getStatusBadgeColor($status) {
                             <strong>Shipping Address:</strong><br>
                             <?php echo nl2br(htmlspecialchars($order['shipping_address'])); ?>
                         </div>
-                        <div class="mb-3">
-                            <strong>Payment Method:</strong><br>
-                            <?php echo ucfirst(str_replace('_', ' ', $order['payment_method'])); ?>
-                        </div>
+
                     </div>
                 </div>
 
