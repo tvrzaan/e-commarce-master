@@ -2,8 +2,6 @@
 namespace App\Models;
 
 use App\Config\Database;
-use PDO;
-use PDOException;
 
 class Product {
     private $db;
@@ -17,17 +15,37 @@ class Product {
     }
 
     private function checkTableStructure() {
-        try {
-            $columns = $this->db->query("SHOW COLUMNS FROM products")->fetchAll(PDO::FETCH_COLUMN);
-            
-            $this->hasStockQuantity = in_array('stock_quantity', $columns);
-            $this->hasStatus = in_array('status', $columns);
-            $this->imageColumn = in_array('image_url', $columns) ? 'image_url' : 'image';
-            
-        } catch (PDOException $e) {
-            // If there's an error, assume basic structure
-            error_log("Error checking table structure: " . $e->getMessage());
+        // Check if products table exists
+        $sql = "SHOW TABLES LIKE 'products'";
+        $result = mysqli_query($this->db, $sql);
+        
+        if (mysqli_num_rows($result) == 0) {
+            // Create products table if it doesn't exist
+            $sql = "CREATE TABLE products (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                price DECIMAL(10,2) NOT NULL,
+                category_id INT,
+                image_url VARCHAR(255),
+                stock_quantity INT DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )";
+            mysqli_query($this->db, $sql);
         }
+
+        // Check columns
+        $sql = "SHOW COLUMNS FROM products";
+        $result = mysqli_query($this->db, $sql);
+        $columns = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $columns[] = $row['Field'];
+        }
+        
+        $this->hasStockQuantity = in_array('stock_quantity', $columns);
+        $this->hasStatus = in_array('status', $columns);
+        $this->imageColumn = in_array('image_url', $columns) ? 'image_url' : 'image';
     }
 
     public function getAllProducts() {
@@ -48,62 +66,55 @@ class Product {
                   LEFT JOIN categories c ON p.category_id = c.id 
                   ORDER BY p.id DESC";
 
-        try {
-            $stmt = $this->db->query($sql);
-            $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // Add default values for missing columns
-            foreach ($products as &$product) {
-                if (!$this->hasStockQuantity) {
-                    $product['stock_quantity'] = 0;
-                }
-                if (!$this->hasStatus) {
-                    $product['status'] = 'active';
-                }
-            }
-
-            return $products;
-        } catch (PDOException $e) {
-            error_log("Error getting products: " . $e->getMessage());
+        $result = mysqli_query($this->db, $sql);
+        if (!$result) {
             return [];
         }
+
+        $products = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            // Add default values for missing columns
+            if (!$this->hasStockQuantity) {
+                $row['stock_quantity'] = 0;
+            }
+            if (!$this->hasStatus) {
+                $row['status'] = 'active';
+            }
+            $products[] = $row;
+        }
+
+        return $products;
     }
 
     public function addProduct($data) {
-        try {
-            $categoryId = $this->getOrCreateCategory($data['category']);
+        $categoryId = $this->getOrCreateCategory($data['category']);
 
-            $columns = ['name', 'description', 'price', 'category_id', $this->imageColumn];
-            $values = [':name', ':description', ':price', ':category_id', ':image'];
-            $params = [
-                ':name' => $data['name'],
-                ':description' => $data['description'],
-                ':price' => $data['price'],
-                ':category_id' => $categoryId,
-                ':image' => $data['image']
-            ];
+        // Escape special characters
+        $name = mysqli_real_escape_string($this->db, $data['name']);
+        $description = mysqli_real_escape_string($this->db, $data['description']);
+        $price = floatval($data['price']);
+        $image = mysqli_real_escape_string($this->db, $data['image']);
 
-            if ($this->hasStockQuantity) {
-                $columns[] = 'stock_quantity';
-                $values[] = ':stock_quantity';
-                $params[':stock_quantity'] = $data['stock_quantity'] ?? 0;
-            }
+        // Build the query
+        $columns = ['name', 'description', 'price', 'category_id', $this->imageColumn];
+        $values = ["'$name'", "'$description'", $price, $categoryId, "'$image'"];
 
-            if ($this->hasStatus) {
-                $columns[] = 'status';
-                $values[] = ':status';
-                $params[':status'] = $data['status'] ?? 'active';
-            }
-
-            $sql = "INSERT INTO products (" . implode(', ', $columns) . ") 
-                    VALUES (" . implode(', ', $values) . ")";
-
-            $stmt = $this->db->prepare($sql);
-            return $stmt->execute($params);
-        } catch (PDOException $e) {
-            error_log("Error adding product: " . $e->getMessage());
-            return false;
+        if ($this->hasStockQuantity) {
+            $stockQuantity = intval($data['stock_quantity'] ?? 0);
+            $columns[] = 'stock_quantity';
+            $values[] = $stockQuantity;
         }
+
+        if ($this->hasStatus) {
+            $status = mysqli_real_escape_string($this->db, $data['status'] ?? 'active');
+            $columns[] = 'status';
+            $values[] = "'$status'";
+        }
+
+        $sql = "INSERT INTO products (" . implode(', ', $columns) . ") 
+                VALUES (" . implode(', ', $values) . ")";
+
+        return mysqli_query($this->db, $sql);
     }
 
     public function getProductById($id) {
@@ -122,118 +133,106 @@ class Product {
 
         $sql .= " FROM products p 
                   LEFT JOIN categories c ON p.category_id = c.id 
-                  WHERE p.id = :id";
+                  WHERE p.id = '$id'";
 
-        try {
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([':id' => $id]);
-            $product = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($product) {
-                if (!$this->hasStockQuantity) {
-                    $product['stock_quantity'] = 0;
-                }
-                if (!$this->hasStatus) {
-                    $product['status'] = 'active';
-                }
-            }
-
-            return $product;
-        } catch (PDOException $e) {
-            error_log("Error getting product: " . $e->getMessage());
+        $result = mysqli_query($this->db, $sql);
+        if (!$result) {
             return null;
         }
+
+        $product = mysqli_fetch_assoc($result);
+        if ($product) {
+            if (!$this->hasStockQuantity) {
+                $product['stock_quantity'] = 0;
+            }
+            if (!$this->hasStatus) {
+                $product['status'] = 'active';
+            }
+        }
+
+        return $product;
     }
 
     public function updateProduct($id, $data) {
-        try {
-            $categoryId = $this->getOrCreateCategory($data['category']);
+        $categoryId = $this->getOrCreateCategory($data['category']);
 
-            $updates = [
-                'name = :name',
-                'description = :description',
-                'price = :price',
-                'category_id = :category_id'
-            ];
+        // Escape special characters
+        $name = mysqli_real_escape_string($this->db, $data['name']);
+        $description = mysqli_real_escape_string($this->db, $data['description']);
+        $price = floatval($data['price']);
 
-            $params = [
-                ':id' => $id,
-                ':name' => $data['name'],
-                ':description' => $data['description'],
-                ':price' => $data['price'],
-                ':category_id' => $categoryId
-            ];
+        // Build the update query
+        $updates = [
+            "name = '$name'",
+            "description = '$description'",
+            "price = $price",
+            "category_id = $categoryId"
+        ];
 
-            if ($this->hasStockQuantity) {
-                $updates[] = 'stock_quantity = :stock_quantity';
-                $params[':stock_quantity'] = $data['stock_quantity'] ?? 0;
-            }
-
-            if ($this->hasStatus) {
-                $updates[] = 'status = :status';
-                $params[':status'] = $data['status'] ?? 'active';
-            }
-
-            if (isset($data['image']) && !empty($data['image'])) {
-                $updates[] = $this->imageColumn . ' = :image';
-                $params[':image'] = $data['image'];
-            }
-
-            $sql = "UPDATE products SET " . implode(', ', $updates) . " WHERE id = :id";
-
-            $stmt = $this->db->prepare($sql);
-            return $stmt->execute($params);
-        } catch (PDOException $e) {
-            error_log("Error updating product: " . $e->getMessage());
-            return false;
+        if ($this->hasStockQuantity) {
+            $stockQuantity = intval($data['stock_quantity'] ?? 0);
+            $updates[] = "stock_quantity = $stockQuantity";
         }
+
+        if ($this->hasStatus) {
+            $status = mysqli_real_escape_string($this->db, $data['status'] ?? 'active');
+            $updates[] = "status = '$status'";
+        }
+
+        if (isset($data['image']) && !empty($data['image'])) {
+            $image = mysqli_real_escape_string($this->db, $data['image']);
+            $updates[] = "{$this->imageColumn} = '$image'";
+        }
+
+        $sql = "UPDATE products SET " . implode(', ', $updates) . " WHERE id = '$id'";
+        return mysqli_query($this->db, $sql);
     }
 
     public function deleteProduct($id) {
-        try {
-            $product = $this->getProductById($id);
-            if ($product && !empty($product['image'])) {
-                $imagePath = __DIR__ . '/../' . $product['image'];
-                if (file_exists($imagePath)) {
-                    unlink($imagePath);
-                }
+        $product = $this->getProductById($id);
+        if ($product && !empty($product['image'])) {
+            $imagePath = __DIR__ . '/../' . $product['image'];
+            if (file_exists($imagePath)) {
+                unlink($imagePath);
             }
-
-            $stmt = $this->db->prepare("DELETE FROM products WHERE id = :id");
-            return $stmt->execute([':id' => $id]);
-        } catch (PDOException $e) {
-            error_log("Error deleting product: " . $e->getMessage());
-            return false;
         }
+
+        $sql = "DELETE FROM products WHERE id = '$id'";
+        return mysqli_query($this->db, $sql);
     }
 
     private function getOrCreateCategory($categoryName) {
-        try {
-            $stmt = $this->db->prepare("SELECT id FROM categories WHERE name = :name");
-            $stmt->execute([':name' => $categoryName]);
-            $category = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($category) {
-                return $category['id'];
-            }
-            
-            $stmt = $this->db->prepare("INSERT INTO categories (name) VALUES (:name)");
-            $stmt->execute([':name' => $categoryName]);
-            
-            return $this->db->lastInsertId();
-        } catch (PDOException $e) {
-            error_log("Error with category: " . $e->getMessage());
-            return null;
+        // Escape category name
+        $categoryName = mysqli_real_escape_string($this->db, $categoryName);
+        
+        // Check if category exists
+        $sql = "SELECT id FROM categories WHERE name = '$categoryName'";
+        $result = mysqli_query($this->db, $sql);
+        
+        if ($result && $row = mysqli_fetch_assoc($result)) {
+            return $row['id'];
         }
+        
+        // Create new category
+        $sql = "INSERT INTO categories (name) VALUES ('$categoryName')";
+        mysqli_query($this->db, $sql);
+        
+        return mysqli_insert_id($this->db);
     }
 
     public function getAllCategories() {
-        try {
-            $stmt = $this->db->query("SELECT * FROM categories ORDER BY name");
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            error_log("Error getting categories: " . $e->getMessage());
+        $sql = "SELECT * FROM categories ORDER BY name";
+        $result = mysqli_query($this->db, $sql);
+        
+        if (!$result) {
             return [];
         }
+        
+        $categories = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $categories[] = $row;
+        }
+        
+        return $categories;
     }
 } 

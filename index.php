@@ -55,7 +55,7 @@ require_once('includes/functions.php');
                             </a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                                <li><a class="dropdown-item" href="orders.php">Orders</a></li>
+                                <li><a class="dropdown-item" href="admin/orders.php">Orders</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="logout.php">Logout</a></li>
                             </ul>

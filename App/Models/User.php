@@ -2,7 +2,6 @@
 namespace App\Models;
 
 use App\Config\Database;
-use PDO;
 
 class User {
     private $db;
@@ -17,94 +16,102 @@ class User {
             return false;
         }
 
-        $sql = "INSERT INTO users (username, email, password, full_name, phone, address, created_at) 
-                VALUES (:username, :email, :password, :full_name, :phone, :address, NOW())";
+        // Escape special characters
+        $username = mysqli_real_escape_string($this->db, $data['username']);
+        $email = mysqli_real_escape_string($this->db, $data['email']);
+        $password = password_hash($data['password'], PASSWORD_DEFAULT);
+        $fullName = mysqli_real_escape_string($this->db, $data['full_name']);
+        $phone = mysqli_real_escape_string($this->db, $data['phone'] ?? '');
+        $address = mysqli_real_escape_string($this->db, $data['address'] ?? '');
 
-        $params = [
-            ':username' => $data['username'],
-            ':email' => $data['email'],
-            ':password' => password_hash($data['password'], PASSWORD_DEFAULT),
-            ':full_name' => $data['full_name'],
-            ':phone' => $data['phone'] ?? '',
-            ':address' => $data['address'] ?? ''
-        ];
+        // Simple insert query
+        $sql = "INSERT INTO users (username, email, password, full_name, phone, address, created_at) 
+                VALUES ('$username', '$email', '$password', '$fullName', '$phone', '$address', NOW())";
 
         try {
-            $stmt = $this->db->prepare($sql);
-            $success = $stmt->execute($params);
-            return $success ? $this->db->lastInsertId() : false;
-        } catch (\PDOException $e) {
+            $result = mysqli_query($this->db, $sql);
+            return $result ? mysqli_insert_id($this->db) : false;
+        } catch (\Exception $e) {
             // Log error if needed
             return false;
         }
     }
 
     public function getUserById($id) {
-        $stmt = $this->db->prepare("SELECT id, username, email, full_name, phone, address, created_at FROM users WHERE id = :id");
-        $stmt->execute([':id' => $id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        // Simple query to get user details
+        $sql = "SELECT id, username, email, full_name, phone, address, created_at 
+                FROM users WHERE id = '$id'";
+        
+        $result = mysqli_query($this->db, $sql);
+        if (!$result) {
+            return null;
+        }
+        
+        return mysqli_fetch_assoc($result);
     }
 
     public function updateUser($id, $data) {
+        // Escape special characters
+        $fullName = mysqli_real_escape_string($this->db, $data['full_name']);
+        $email = mysqli_real_escape_string($this->db, $data['email']);
+        $phone = mysqli_real_escape_string($this->db, $data['phone']);
+        $address = mysqli_real_escape_string($this->db, $data['address']);
+
+        // Start building the update query
         $sql = "UPDATE users SET 
-                full_name = :full_name,
-                email = :email,
-                phone = :phone,
-                address = :address";
+                full_name = '$fullName',
+                email = '$email',
+                phone = '$phone',
+                address = '$address'";
 
-        // If password is being updated, add it to the query
+        // Add password update if provided
         if (!empty($data['password'])) {
-            $sql .= ", password = :password";
+            $password = password_hash($data['password'], PASSWORD_DEFAULT);
+            $sql .= ", password = '$password'";
         }
 
-        $sql .= " WHERE id = :id";
+        // Complete the query
+        $sql .= " WHERE id = '$id'";
         
-        $params = [
-            ':id' => $id,
-            ':full_name' => $data['full_name'],
-            ':email' => $data['email'],
-            ':phone' => $data['phone'],
-            ':address' => $data['address']
-        ];
-
-        // Add hashed password to params if it's being updated
-        if (!empty($data['password'])) {
-            $params[':password'] = password_hash($data['password'], PASSWORD_DEFAULT);
-        }
-
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute($params);
+        return mysqli_query($this->db, $sql);
     }
 
     public function updatePassword($id, $currentPassword, $newPassword) {
         // First verify current password
-        $stmt = $this->db->prepare("SELECT password FROM users WHERE id = :id");
-        $stmt->execute([':id' => $id]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
+        $sql = "SELECT password FROM users WHERE id = '$id'";
+        $result = mysqli_query($this->db, $sql);
+        
+        if (!$result) {
+            return false;
+        }
+        
+        $user = mysqli_fetch_assoc($result);
         if (!$user || !password_verify($currentPassword, $user['password'])) {
             return false;
         }
 
         // Update to new password
-        $stmt = $this->db->prepare("UPDATE users SET password = :password WHERE id = :id");
-        return $stmt->execute([
-            ':id' => $id,
-            ':password' => password_hash($newPassword, PASSWORD_DEFAULT)
-        ]);
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        $sql = "UPDATE users SET password = '$hashedPassword' WHERE id = '$id'";
+        return mysqli_query($this->db, $sql);
     }
 
     public function isEmailTaken($email, $excludeUserId = null) {
-        $sql = "SELECT id FROM users WHERE email = :email";
-        $params = [':email' => $email];
-
+        // Escape email
+        $email = mysqli_real_escape_string($this->db, $email);
+        
+        // Build the query
+        $sql = "SELECT id FROM users WHERE email = '$email'";
+        
         if ($excludeUserId) {
-            $sql .= " AND id != :user_id";
-            $params[':user_id'] = $excludeUserId;
+            $sql .= " AND id != '$excludeUserId'";
         }
 
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetch(PDO::FETCH_ASSOC) ? true : false;
+        $result = mysqli_query($this->db, $sql);
+        if (!$result) {
+            return false;
+        }
+        
+        return mysqli_fetch_assoc($result) ? true : false;
     }
 } 

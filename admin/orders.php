@@ -125,7 +125,7 @@ $stats = $orderModel->getOrderStatistics();
                     <div class="col-md-6">
                         <h6>Order Information</h6>
                         <p><strong>Order Date:</strong> <?php echo date('F j, Y g:i A', strtotime($orderDetails['created_at'])); ?></p>
-                        <p><strong>Payment Method:</strong> <?php echo htmlspecialchars($orderDetails['payment_method']); ?></p>
+                    
                         <p><strong>Total Amount:</strong> $<?php echo number_format($orderDetails['total_amount'], 2); ?></p>
                         <form method="post" class="d-flex align-items-center">
                             <input type="hidden" name="order_id" value="<?php echo $orderDetails['id']; ?>">

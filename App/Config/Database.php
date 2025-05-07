@@ -1,9 +1,6 @@
 <?php
 namespace App\Config;
 
-use PDO;
-use PDOException;
-
 class Database {
     private static $instance = null;
     private $connection;
@@ -16,17 +13,20 @@ class Database {
 
     private function __construct() {
         try {
-            $this->connection = new PDO(
-                "mysql:host={$this->host};dbname={$this->dbname}",
+            $this->connection = mysqli_connect(
+                $this->host,
                 $this->username,
                 $this->password,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                ]
+                $this->dbname
             );
-        } catch (PDOException $e) {
+
+            if (!$this->connection) {
+                throw new \Exception("Connection failed: " . mysqli_connect_error());
+            }
+
+            // Set charset to ensure proper encoding
+            mysqli_set_charset($this->connection, "utf8mb4");
+        } catch (\Exception $e) {
             die("Connection failed: " . $e->getMessage());
         }
     }
@@ -38,7 +38,7 @@ class Database {
         return self::$instance;
     }
 
-    public function getConnection(): PDO {
+    public function getConnection() {
         return $this->connection;
     }
 
