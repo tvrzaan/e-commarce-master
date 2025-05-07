@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Log POST data (remove in production)
-$_SESSION['debug'] .= "POST data received: " . print_r($_POST, true) . "\n";
+
 
 // Validate CSRF token
 if (!isset($_POST['csrf_token']) || !isset($_SESSION['csrf_token']) || 

@@ -15,9 +15,9 @@ function showError($field) {
  */
 function showSuccess() {
     if (isset($_SESSION['success'])) {
-        $message = htmlspecialchars($_SESSION['success']);
+        $success = $_SESSION['success'];
         unset($_SESSION['success']);
-        return "<div class='alert alert-success'>$message</div>";
+        return '<div class="alert alert-success">' . htmlspecialchars($success) . '</div>';
     }
     return '';
 }
@@ -27,9 +27,9 @@ function showSuccess() {
  */
 function showGeneralError() {
     if (isset($_SESSION['error'])) {
-        $message = htmlspecialchars($_SESSION['error']);
+        $error = $_SESSION['error'];
         unset($_SESSION['error']);
-        return "<div class='alert alert-danger'>$message</div>";
+        return '<div class="alert alert-danger">' . htmlspecialchars($error) . '</div>';
     }
     return '';
 }
@@ -38,7 +38,6 @@ function showGeneralError() {
  * Clear all session messages
  */
 function clearMessages() {
-    unset($_SESSION['errors']);
     unset($_SESSION['error']);
     unset($_SESSION['success']);
 }
