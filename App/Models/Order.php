@@ -35,7 +35,9 @@ class Order {
         }
 
         // Get order items
-        $sql = "SELECT oi.*, p.name as product_name, p.image 
+        $sql = "SELECT oi.*, p.name as product_name, p.image_url as image,
+                oi.price_per_unit as price,
+                (oi.price_per_unit * oi.quantity) as total_price
                 FROM order_items oi 
                 JOIN products p ON oi.product_id = p.id 
                 WHERE oi.order_id = :order_id";

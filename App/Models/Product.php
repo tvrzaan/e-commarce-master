@@ -17,7 +17,7 @@ class Product {
     }
 
     public function addProduct($data) {
-        $sql = "INSERT INTO products (name, description, price, category, image) VALUES (:name, :description, :price, :category, :image)";
+        $sql = "INSERT INTO products (name, description, price, category, image_url) VALUES (:name, :description, :price, :category, :image)";
         $stmt = $this->db->prepare($sql);
         
         return $stmt->execute([
@@ -52,7 +52,7 @@ class Product {
         ];
 
         if (isset($data['image']) && !empty($data['image'])) {
-            $sql .= ", image = :image";
+            $sql .= ", image_url = :image";
             $params[':image'] = $data['image'];
         }
 

@@ -35,7 +35,7 @@ class Cart {
 
     public function getCartItems($userId) {
         $stmt = $this->db->prepare("
-            SELECT c.*, p.name, p.price, p.image, (p.price * c.quantity) as total_price 
+            SELECT c.*, p.name, p.price, p.image_url as image, (p.price * c.quantity) as total_price 
             FROM cart c 
             JOIN products p ON c.product_id = p.id 
             WHERE c.user_id = :user_id

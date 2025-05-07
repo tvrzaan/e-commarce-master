@@ -129,7 +129,7 @@ $products = $productModel->getAllProducts();
             <?php foreach ($products as $product): ?>
             <div class="col">
                 <div class="card h-100 product-card">
-                    <img src="<?php echo htmlspecialchars($product['image']); ?>" class="card-img-top product-image" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                    <img src="<?php echo htmlspecialchars($product['image_url']); ?>" class="card-img-top product-image" alt="<?php echo htmlspecialchars($product['name']); ?>">
                     <div class="card-body">
                         <h5 class="card-title"><?php echo htmlspecialchars($product['name']); ?></h5>
                         <p class="card-text">

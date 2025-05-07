@@ -37,8 +37,6 @@ CREATE TABLE IF NOT EXISTS products (
     stock_quantity INT NOT NULL DEFAULT 0,
     category_id INT,
     image_url VARCHAR(255),
-    sku VARCHAR(50) UNIQUE,
-    status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
@@ -95,16 +93,19 @@ CREATE TABLE IF NOT EXISTS product_reviews (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Insert default admin user
--- Note: Password is hashed, actual password is '#8.}MhpivP?+2-}'
 INSERT INTO users (username, email, password, full_name, role) 
-SELECT 'youssef', 'youssef@gmail.com', '$2y$10$somehashedpassword', 'Youssef Admin', 'admin'
-WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'youssef@gmail.com'
-) LIMIT 1;
+VALUES ('admin', 'admin@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin User', 'admin');
 
--- Create some sample categories
+-- Insert sample categories
 INSERT INTO categories (name, description) VALUES
 ('Electronics', 'Electronic devices and accessories'),
 ('Clothing', 'Fashion and apparel'),
 ('Books', 'Books and publications'),
 ('Home & Living', 'Home decor and furniture');
+
+-- Insert sample products
+INSERT INTO products (name, description, price, stock_quantity, category_id, image_url) VALUES
+('Laptop Pro', 'High-performance laptop for professionals', 999.99, 10, 1, 'uploads/products/laptop.jpg'),
+('Smartphone X', 'Latest smartphone with advanced features', 699.99, 15, 1, 'uploads/products/phone.jpg'),
+('Classic T-Shirt', 'Comfortable cotton t-shirt', 19.99, 100, 2, 'uploads/products/tshirt.jpg'),
+('Coffee Table Book', 'Beautiful photography book', 49.99, 30, 3, 'uploads/products/book.jpg');

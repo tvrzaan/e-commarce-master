@@ -48,8 +48,8 @@ $success = '';
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate input
-    if (empty($_POST['shipping_address']) || empty($_POST['payment_method'])) {
-        $error = 'Please fill in all required fields.';
+    if (empty($_POST['shipping_address'])) {
+        $error = 'Please provide a shipping address.';
     } else {
         try {
             // Start transaction
@@ -58,20 +58,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             error_log("Starting order process for user: " . $userId);
             error_log("Cart total: " . $cartTotal);
-            error_log("Payment method: " . $_POST['payment_method']);
 
             // Create order
             $orderData = [
                 'user_id' => $userId,
                 'total_amount' => $cartTotal,
                 'shipping_address' => $_POST['shipping_address'],
-                'payment_method' => $_POST['payment_method'],
-                'status' => 'pending'
+                'status' => 'pending',
+                'payment_status' => 'pending'
             ];
 
             // Insert order and get order ID
-            $sql = "INSERT INTO orders (user_id, total_amount, shipping_address, payment_method, status) 
-                    VALUES (:user_id, :total_amount, :shipping_address, :payment_method, :status)";
+            $sql = "INSERT INTO orders (user_id, total_amount, shipping_address, status, payment_status) 
+                    VALUES (:user_id, :total_amount, :shipping_address, :status, :payment_status)";
             $stmt = $db->prepare($sql);
             
             error_log("Executing order insert with data: " . print_r($orderData, true));
@@ -84,8 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log("Order created with ID: " . $orderId);
 
             // Insert order items
-            $sql = "INSERT INTO order_items (order_id, product_id, quantity, price) 
-                    VALUES (:order_id, :product_id, :quantity, :price)";
+            $sql = "INSERT INTO order_items (order_id, product_id, quantity, price_per_unit, subtotal) 
+                    VALUES (:order_id, :product_id, :quantity, :price_per_unit, :subtotal)";
             $stmt = $db->prepare($sql);
 
             foreach ($cartItems as $item) {
@@ -93,7 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':order_id' => $orderId,
                     ':product_id' => $item['product_id'],
                     ':quantity' => $item['quantity'],
-                    ':price' => $item['price']
+                    ':price_per_unit' => $item['price'],
+                    ':subtotal' => $item['price'] * $item['quantity']
                 ];
                 
                 error_log("Inserting order item: " . print_r($itemData, true));
@@ -190,17 +190,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="mb-3">
                                 <label for="shipping_address" class="form-label">Shipping Address</label>
                                 <textarea class="form-control" id="shipping_address" name="shipping_address" rows="3" required></textarea>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="payment_method" class="form-label">Payment Method</label>
-                                <select class="form-select" id="payment_method" name="payment_method" required>
-                                    <option value="">Choose...</option>
-                                    <option value="credit_card">Credit Card</option>
-                                    <option value="debit_card">Debit Card</option>
-                                    <option value="paypal">PayPal</option>
-                                    <option value="cash_on_delivery">Cash on Delivery</option>
-                                </select>
                             </div>
 
                             <hr class="my-4">
