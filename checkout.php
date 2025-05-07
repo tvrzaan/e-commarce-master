@@ -7,6 +7,10 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Config\Database;
 
+// Enable error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Check if user is logged in
 if (!isLoggedIn()) {
     header('Location: views/auth/login.php');
@@ -14,13 +18,23 @@ if (!isLoggedIn()) {
 }
 
 // Initialize models
-$cartModel = new Cart();
-$orderModel = new Order();
+try {
+    $cartModel = new Cart();
+    $orderModel = new Order();
+} catch (Exception $e) {
+    error_log("Error initializing models: " . $e->getMessage());
+    die("System error: Unable to process checkout. Please try again later.");
+}
 
 // Get cart items
 $userId = $_SESSION['user_id'];
-$cartItems = $cartModel->getCartItems($userId);
-$cartTotal = $cartModel->getCartTotal($userId);
+try {
+    $cartItems = $cartModel->getCartItems($userId);
+    $cartTotal = $cartModel->getCartTotal($userId);
+} catch (Exception $e) {
+    error_log("Error getting cart items: " . $e->getMessage());
+    die("System error: Unable to retrieve cart items. Please try again later.");
+}
 
 // Redirect if cart is empty
 if (empty($cartItems)) {
@@ -42,6 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db = Database::getInstance()->getConnection();
             $db->beginTransaction();
 
+            error_log("Starting order process for user: " . $userId);
+            error_log("Cart total: " . $cartTotal);
+            error_log("Payment method: " . $_POST['payment_method']);
+
             // Create order
             $orderData = [
                 'user_id' => $userId,
@@ -55,8 +73,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql = "INSERT INTO orders (user_id, total_amount, shipping_address, payment_method, status) 
                     VALUES (:user_id, :total_amount, :shipping_address, :payment_method, :status)";
             $stmt = $db->prepare($sql);
-            $stmt->execute($orderData);
+            
+            error_log("Executing order insert with data: " . print_r($orderData, true));
+            
+            if (!$stmt->execute($orderData)) {
+                throw new Exception("Failed to create order: " . implode(", ", $stmt->errorInfo()));
+            }
+            
             $orderId = $db->lastInsertId();
+            error_log("Order created with ID: " . $orderId);
 
             // Insert order items
             $sql = "INSERT INTO order_items (order_id, product_id, quantity, price) 
@@ -64,19 +89,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare($sql);
 
             foreach ($cartItems as $item) {
-                $stmt->execute([
+                $itemData = [
                     ':order_id' => $orderId,
                     ':product_id' => $item['product_id'],
                     ':quantity' => $item['quantity'],
                     ':price' => $item['price']
-                ]);
+                ];
+                
+                error_log("Inserting order item: " . print_r($itemData, true));
+                
+                if (!$stmt->execute($itemData)) {
+                    throw new Exception("Failed to create order item: " . implode(", ", $stmt->errorInfo()));
+                }
             }
 
             // Clear the cart
-            $cartModel->clearCart($userId);
+            if (!$cartModel->clearCart($userId)) {
+                throw new Exception("Failed to clear cart after order creation");
+            }
 
             // Commit transaction
             $db->commit();
+            error_log("Order process completed successfully for order ID: " . $orderId);
 
             // Set success message and redirect to home page
             $_SESSION['success_message'] = 'Order placed successfully! You can check your order status in your profile.';
@@ -85,8 +119,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } catch (Exception $e) {
             // Rollback transaction on error
-            $db->rollBack();
-            $error = 'An error occurred while processing your order. Please try again.';
+            if (isset($db)) {
+                $db->rollBack();
+            }
+            error_log("Order processing error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+            $error = 'An error occurred while processing your order. Please try again. Error: ' . $e->getMessage();
         }
     }
 }
