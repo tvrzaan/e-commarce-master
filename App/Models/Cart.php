@@ -66,7 +66,6 @@ class Cart {
     }
 
     public function getCartTotal($userId) {
-        // Calculate total price of all items in cart
         $sql = "SELECT SUM(p.price * c.quantity) as total 
                 FROM cart c 
                 JOIN products p ON c.product_id = p.id 
@@ -82,7 +81,6 @@ class Cart {
     }
 
     public function clearCart($userId) {
-        // Simple delete query to remove all items
         $sql = "DELETE FROM cart WHERE user_id = '$userId'";
         return mysqli_query($this->db, $sql);
     }

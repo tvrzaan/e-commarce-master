@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             // Start transaction
             $db = Database::getInstance()->getConnection();
-            $db->beginTransaction();
+            mysqli_begin_transaction($db);
 
             error_log("Starting order process for user: " . $userId);
             error_log("Cart total: " . $cartTotal);
@@ -70,36 +70,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Insert order and get order ID
             $sql = "INSERT INTO orders (user_id, total_amount, shipping_address, status, payment_status) 
-                    VALUES (:user_id, :total_amount, :shipping_address, :status, :payment_status)";
-            $stmt = $db->prepare($sql);
+                    VALUES ('{$orderData['user_id']}', '{$orderData['total_amount']}', '{$orderData['shipping_address']}', '{$orderData['status']}', '{$orderData['payment_status']}')";
             
             error_log("Executing order insert with data: " . print_r($orderData, true));
             
-            if (!$stmt->execute($orderData)) {
-                throw new Exception("Failed to create order: " . implode(", ", $stmt->errorInfo()));
+            if (!mysqli_query($db, $sql)) {
+                throw new Exception("Failed to create order: " . mysqli_error($db));
             }
             
-            $orderId = $db->lastInsertId();
+            $orderId = mysqli_insert_id($db);
             error_log("Order created with ID: " . $orderId);
 
             // Insert order items
             $sql = "INSERT INTO order_items (order_id, product_id, quantity, price_per_unit, subtotal) 
-                    VALUES (:order_id, :product_id, :quantity, :price_per_unit, :subtotal)";
-            $stmt = $db->prepare($sql);
+                    VALUES ('$orderId', ?, ?, ?, ?)";
+            $stmt = mysqli_prepare($db, $sql);
 
             foreach ($cartItems as $item) {
-                $itemData = [
-                    ':order_id' => $orderId,
-                    ':product_id' => $item['product_id'],
-                    ':quantity' => $item['quantity'],
-                    ':price_per_unit' => $item['price'],
-                    ':subtotal' => $item['price'] * $item['quantity']
-                ];
+                $subtotal = $item['price'] * $item['quantity'];
+                mysqli_stmt_bind_param($stmt, 'iidd', 
+                    $item['product_id'],
+                    $item['quantity'],
+                    $item['price'],
+                    $subtotal
+                );
                 
-                error_log("Inserting order item: " . print_r($itemData, true));
+                error_log("Inserting order item: " . print_r($item, true));
                 
-                if (!$stmt->execute($itemData)) {
-                    throw new Exception("Failed to create order item: " . implode(", ", $stmt->errorInfo()));
+                if (!mysqli_stmt_execute($stmt)) {
+                    throw new Exception("Failed to create order item: " . mysqli_error($db));
                 }
             }
 
@@ -109,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Commit transaction
-            $db->commit();
+            mysqli_commit($db);
             error_log("Order process completed successfully for order ID: " . $orderId);
 
             // Set success message and redirect to home page
@@ -120,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             // Rollback transaction on error
             if (isset($db)) {
-                $db->rollBack();
+                mysqli_rollback($db);
             }
             error_log("Order processing error: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());

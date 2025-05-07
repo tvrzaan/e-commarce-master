@@ -31,7 +31,7 @@ unset($_SESSION['csrf_token']);
 
 // Validate input
 if (empty($_POST['email']) || empty($_POST['password'])) {
-    $_SESSION['debug'] .= "Empty email or password\n";
+
     $_SESSION['error'] = "Email and password are required";
     header('Location: ../../views/auth/login.php');
     exit;
@@ -39,8 +39,7 @@ if (empty($_POST['email']) || empty($_POST['password'])) {
 
 // Validate email format
 if (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
-    $_SESSION['debug'] .= "Invalid email format\n";
-    $_SESSION['error'] = "Invalid email format";
+
     header('Location: ../../views/auth/login.php');
     exit;
 }
@@ -70,16 +69,13 @@ try {
     $_SESSION['debug'] .= "Query executed. Found rows: " . $result->num_rows . "\n";
     
     if ($result->num_rows === 0) {
-        $_SESSION['debug'] .= "No user found with email: " . $_POST['email'] . "\n";
-        $_SESSION['error'] = "Invalid email or password";
+
         header('Location: ../../views/auth/login.php');
         exit;
     }
     
     $user = $result->fetch_assoc();
-    $_SESSION['debug'] .= "User found, verifying password\n";
-    $_SESSION['debug'] .= "Stored hash: " . $user['password'] . "\n";
-    $_SESSION['debug'] .= "Provided password: " . $_POST['password'] . "\n";
+
     
     // Verify password
     if (password_verify($_POST['password'], $user['password'])) {
@@ -114,8 +110,7 @@ try {
         }
         exit;
     } else {
-        $_SESSION['debug'] .= "Password verification failed\n";
-        $_SESSION['error'] = "Invalid email or password";
+      
         header('Location: ../../views/auth/login.php');
         exit;
     }
